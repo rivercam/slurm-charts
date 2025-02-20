@@ -1,0 +1,50 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: undrain-nodes-hook
+  annotations:
+    "helm.sh/hook": post-upgrade
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  backoffLimit: 6
+  ttlSecondsAfterFinished: 60
+  template:
+    metadata:
+      name: undrain-nodes-hook
+    spec:
+      restartPolicy: Never
+      dnsPolicy: ClusterFirstWithHostNet
+      dnsConfig:
+        searches:
+          - slurmd.hpc-ubiq.svc.cluster.local
+      containers:
+      - name: undrain-nodes-hook
+        image: {{ .Values.slurmImage }}
+        args:
+          - undrain-nodes-hook
+        volumeMounts:
+          - name: slurm-config-volume
+            mountPath: /etc/slurm/slurm.conf
+            subPath: slurm.conf
+          - name: slurm-config-cgroup
+            mountPath: /etc/slurm/cgroup.conf
+            subPath: cgroup.conf
+          - name: slurm-jobdir
+            mountPath: {{ .Values.storage.mountPath }}
+          - name: munge-key-secret
+            mountPath: /tmp/munge.key
+            subPath: munge.key
+      volumes:
+        - name: slurm-config-cgroup
+          configMap:
+            name: {{ .Values.configmaps.slurmCgroupConf }}
+        - name: slurm-jobdir
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.claimName }}
+        - name: slurm-config-volume
+          configMap:
+            name: {{ .Values.configmaps.slurmConf }}
+        - name: munge-key-secret
+          secret:
+            secretName: {{ .Values.secrets.mungeKey }}
+            defaultMode: 0400

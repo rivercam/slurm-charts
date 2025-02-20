@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configmaps.slurmProlog }}
+data:
+  Z99UbiqInit.sh: |+
+    #!/bin/bash
+    # Z99UbiqInit.sh
+    #
+    # See the slurm man page re: Prolog for more information
+    #
+
+    # Make strings lower case for nice email formatting

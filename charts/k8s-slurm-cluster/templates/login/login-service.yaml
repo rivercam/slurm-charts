@@ -1,0 +1,31 @@
+{{- if and .Values.login.enabled .Values.login.service.enabled }}
+{{- $serviceValues := .Values.login.service -}}
+apiVersion: v1
+kind: Service
+metadata:
+  name: login
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/name: slurm
+    app.kubernetes.io/component: login
+    {{- if $serviceValues.labels }}
+    {{ toYaml $serviceValues.labels | indent 4 }}
+    {{- end }}
+  {{- if $serviceValues.annotations }}
+  annotations:
+  {{ toYaml $serviceValues.annotations | indent 4 }}
+  {{- end }}
+spec:
+  ports:
+    - name: ssh
+      port: 22
+      targetPort: 22
+    {{- if .Values.login.metrics.enabled }}
+    - name: metrics
+      port: 8080
+      targetPort: metrics
+    {{- end }}
+  selector:
+    app.kubernetes.io/name: slurm
+    app.kubernetes.io/component: login
+{{- end }}

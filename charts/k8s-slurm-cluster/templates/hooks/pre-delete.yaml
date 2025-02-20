@@ -1,0 +1,63 @@
+# NOTE: The cleanup jobs defined here are required to ensure that things which
+# a storage class is responsible for cleaning up are deleted before deleting the Rook
+# pods which do the actual clean up of NFS resources. For example, the RWM PVC
+# must be deleted before the StorageClass and provisioner pod. However,
+# the PVC cannot be deleted until the pods which are using it are deleted, so
+# the various Slurm node pods must actually be the first resources deleted.
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: slurm-k8s-cleanup
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: slurm-k8s-cleanup
+rules:
+- apiGroups: ["apps"]
+  resources: ["deployments", "statefulsets"]
+  verbs: ["delete", "deletecollection"]
+- apiGroups: [""]
+  resources: ["persistentvolumeclaims"]
+  verbs: ["delete", "deletecollection"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: slurm-k8s-cleanup
+subjects:
+- kind: ServiceAccount
+  name: slurm-k8s-cleanup
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: slurm-k8s-cleanup
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: slurm-k8s-pre-delete-cleanup
+  annotations:
+    "helm.sh/hook": pre-delete
+    "helm.sh/hook-delete-policy": hook-succeeded
+    "helm.sh/hook-weight": "1"
+spec:
+  template:
+    metadata:
+      name: slurm-k8s-pre-delete-cleanup
+    spec:
+      serviceAccountName:  slurm-k8s-cleanup
+      containers:
+      - name: cleanup
+        image: bitnami/kubectl
+        command:
+         - "bin/bash"
+         - "-c"
+         - | 
+            kubectl delete -n {{ .Release.Namespace }} deployment {{ .Values.login.name }} --wait --cascade=foreground
+            kubectl delete -n {{ .Release.Namespace }} statefulset {{ .Values.slurmctld.name }} --wait --cascade=foreground
+            kubectl delete -n {{ .Release.Namespace }} statefulset {{ .Values.slurmd.name }} --wait --cascade=foreground
+            kubectl delete -n {{ .Release.Namespace }} pvc {{ .Values.storage.claimName }} --wait
+      restartPolicy: Never

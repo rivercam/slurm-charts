@@ -1,0 +1,487 @@
+slurmImage: cjcshadowsan/k8s-slurm-cluster:el9-23.11
+
+motd:
+  message: "Welcome to Ubiquity!"
+
+helmPreUpgradeCheckerJob:
+  # Enable ONLY if you have previously deployed Slurm initially and you are looking to ensure that upgrades get checked
+  enabled: false
+
+network:
+  rdma: "true"
+  ipoibnetworks:
+  - ubiquity-ipoibnetwork
+
+# secret containing jwt_hs256.key
+# Will be mounted in /secrets/slurm and copied to /var/spool/slurm/jwt_hs256.key
+jwt:
+  secretName: slurm-secret
+
+# values for secrets - Change these and keep it safe!
+mungeKey: changeme
+dbPass: changeme
+dbUser: 'root'
+dbHosts: '%'
+
+#PAM settings
+
+login:
+  enabled: true
+  # Deployment resource name
+  name: login
+  replicas: 1
+  service:
+    enabled: true
+   # annotations:
+   #   metallb.universe.tf/address-pool: slurm-ch-basel-1-pool
+  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-login
+  imagePullPolicy: 'Always'
+  # Extra volume mounts
+  volumeMounts: []
+  # Resources allocated
+  resources: {}
+  #  requests:
+  #    cpu: '250m'
+  #    memory: '256Mi'
+  #  limits:
+  #    cpu: '1'
+  #    memory: '1Gi'
+  nodeAffinity: {}
+  nodeSelector: {}
+  tolerations: []
+  # Extra volumes
+  volumes: []
+  metrics:
+    enabled: true
+
+    gpuAccounting: false
+
+    ## You can customize the command to refresh the tls configs with:
+    ## command: ['sh', '-c', 'update-ca-trust && /init']
+    command: ['/init']
+
+    image: ghcr.io/deepsquare-io/slurm:23.02.6-2-prometheus-exporter-rocky9.2
+    imagePullPolicy: Always
+
+    # Extra volume mounts (use login.volumes to add volumes)
+    volumeMounts: []
+
+    resources: {}
+      # requests:
+      #   cpu: '100m'
+      #   memory: '256Mi'
+      # limits:
+      #   memory: '1Gi'
+    monitor:
+      enabled: true
+      additionalLabels: {}
+
+      jobLabel: ''
+      scheme: http
+      basicAuth: {}
+      bearerTokenFile:
+      tlsConfig: {}
+
+      ## proxyUrl: URL of a proxy that should be used for scraping.
+      ##
+      proxyUrl: ''
+
+      ## Override serviceMonitor selector
+      ##
+      selectorOverride: {}
+
+      relabelings: []
+      metricRelabelings: []
+      interval: ''
+      scrapeTimeout: 10s
+
+pam:
+  enabled: "true"
+  password_auth:
+    auth_pamenv: "auth            required        pam_env.so"
+    auth_pamunix: "auth            sufficient      pam_unix.so try_first_pass likeauth nullok"
+    auth_pamsss: "auth            sufficient      pam_sss.so use_first_pass"
+    auth_pam_permit: "auth            optional        pam_permit.so"
+    account_pamunix: "account required        pam_unix.so"
+    account_defaults: "account [default=bad success=ok user_unknown=ignore]            pam_sss.so"
+    account_pampermit: "account optional        pam_permit.so"
+    password_cracklib: "password        required        pam_cracklib.so difok=2 minlen=8 dcredit=2 ocredit=2 retry=3"
+    password_pamunix: "password        sufficient      pam_unix.so try_first_pass use_authtok nullok sha512 shadow"
+    password_pamsss: "password        sufficient      pam_sss.so use_authtok"
+    password_pam-permit: "password        optional        pam_permit.so"
+    session_pamlimits: "session         required        pam_limits.so"
+    session_pamenv: "session         required        pam_env.so"
+    session_pamunix: "session         required        pam_unix.so"
+    session_pammkhomedir: "session         optional        pam_mkhomedir.so skel=/etc/skel/ umask=0077"
+    session_pamsss: "session         optional        pam_sss.so"
+    session_pam-permit: "session         optional        pam_permit.so"
+  system_auth:
+    auth_pamenv: "auth            required        pam_env.so"
+    auth_pamunix: "auth            sufficient      pam_unix.so try_first_pass likeauth nullok"
+    auth_pamsss: "auth            sufficient      pam_sss.so use_first_pass"
+    auth_pam_permit: "auth            optional        pam_permit.so"
+    account_pamunix: "account required        pam_unix.so"
+    account_defaults: "account [default=bad success=ok user_unknown=ignore]            pam_sss.so"
+    account_pampermit: "account optional        pam_permit.so"
+    password_cracklib: "password        required        pam_cracklib.so difok=2 minlen=8 dcredit=2 ocredit=2 retry=3"
+    password_pamunix: "password        sufficient      pam_unix.so try_first_pass use_authtok nullok sha512 shadow"
+    password_pamsss: "password        sufficient      pam_sss.so use_authtok"
+    password_pam_permit: "password        optional        pam_permit.so"
+    session_pamlimits: "session         required        pam_limits.so"
+    session_pamenv: "session         required        pam_env.so"
+    session_pamunix: "session         required        pam_unix.so"
+    session_pammkhomedir: "session         optional        pam_mkhomedir.so skel=/etc/skel/ umask=0077"
+    session_pamsss: "session         optional        pam_sss.so"
+    session_pam_permit: "session         optional        pam_permit.so"
+
+auth:
+  ssh:
+    UsePAM: "yes"
+    ChallengeResponseAuthentication: "no"
+    PasswordAuthentication: "yes"
+    HostbasedAuthentication: "yes"
+    SyslogFacility: AUTHPRIV
+    AuthorizedKeysFile: .ssh/authorized_keys
+    IgnoreUserKnownHosts: "yes"
+    GSSAPIAuthentication: "no"
+    GSSAPICleanupCredentials: "no"
+    X11Forwarding: "yes"
+    ClientAliveInterval: 300
+    UseDNS: "no"
+  krb5:
+    enabled: "false"
+    creds:
+      domain: remember_to
+      username: change
+      password: me
+    logging:
+      default: "FILE:/var/log/krb5libs.log"
+      kdc: "FILE:/var/log/krb5kdc.log"
+      admin_server: "FILE:/var/log/kadmind.log"
+    libdefaults:
+      dns_lookup_realm: false
+      dns_lookup_kdc: false
+      ticket_lifetime: 24h
+      renew_lifetime: 7d
+      forwardable: true
+      rdns: false
+      pkinit_anchors: "FILE:/etc/pki/tls/certs/ca-bundle.crt"
+      default_ccache_name: "KEYRING:persistent:%{uid}"
+    realms:
+      TEST:ADCEH.CEH.AC.UK: ADCEH.CEH.AC.UK
+    domain_realm:
+      adceh.ceh.ac.uk: ADCEH.CEH.AC.UK
+      .adceh.ceh.ac.uk: ADCEH.CEH.AC.UK
+  image:
+    repository: opensciencegrid/sssd
+    tag: 3.6-release
+    pullPolicy: Always
+  sssd:
+    config_file_version: 2
+    debug_level: 0x1310
+    services: nss, pam
+  nss:
+    debug_level: 0x1310
+    filter_groups: pulse,cvmfs,sshd,apache,rpc,ansible,root
+    filter_users: pulse,cvmfs,sshd,apache,rpc,ansible,root
+  pam:
+    debug_level: 0x1310
+    pam_id_timeout: 600
+  domains:
+    TEST:
+      ldap_tls_cacertdir: /etc/openldap/cacerts
+
+metrics:
+  enabled: true
+
+  gpuAccounting: false
+
+  ## You can customize the command to refresh the tls configs with:
+  ## command: ['sh', '-c', 'update-ca-trust && /init']
+  command: ['/init']
+
+  image: cjcshadowsan/k8s-slurm:23.11-prometheus-exporter-rocky9.2
+  imagePullPolicy: Always
+
+  # Extra volume mounts (use login.volumes to add volumes)
+  volumeMounts: []
+
+  resources:
+    {}
+    # requests:
+    #   cpu: '100m'
+    #   memory: '256Mi'
+    # limits:
+    #   memory: '1Gi'
+
+  livenessProbe:
+    initialDelaySeconds: 60
+    timeoutSeconds: 15
+    periodSeconds: 10
+    successThreshold: 1
+    failureThreshold: 3
+
+  monitor:
+    enabled: false
+    additionalLabels: {}
+
+    jobLabel: ''
+    scheme: http
+    basicAuth: {}
+    bearerTokenFile:
+    tlsConfig: {}
+
+    ## proxyUrl: URL of a proxy that should be used for scraping.
+    ##
+    proxyUrl: ''
+
+    ## Override serviceMonitor selector
+    ##
+    selectorOverride: {}
+
+    relabelings: []
+    metricRelabelings: []
+    interval: ''
+    scrapeTimeout: 10s
+
+slurmd:
+  # StatefulSet resource name
+  name: slurmd # NB this must match NodeName= in slurm-cluster-chart/files/slurm.conf
+  replicas: 2
+  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-slurmd
+  imagePullPolicy: 'Always'
+  labels:
+    role: compute-node
+  tolerations: []
+  resources: {}
+  #  requests:
+  #    cpu: '4'
+  #    memory: '8Gi'
+  #  limits:
+  #    cpu: '4'
+  #    memory: '8Gi'
+  nodeSelector:
+    node-role.kubernetes.io/worker: "true"
+  nodeAffinity:
+    podAntiAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: role
+            operator: In
+            values:
+            - compute-node
+        topologyKey: "kubernetes.io/hostname"
+  volumes: #{}
+  - name: gpfs-home # For Cluster Challenge Only
+    hostPath:
+      path: /gpfs01/home
+      type: Directory
+  - name: gpfs
+    hostPath:
+      path: /gpfs01
+      type: Directory
+  volumeMounts: #{}
+  - name: gpfs-home
+    mountPath: /home
+  - name: gpfs
+    mountPath: /gpfs01
+slurmdbd:
+  name: slurmdbd
+  service:
+    enabled: true
+   # annotations:
+   #   metallb.universe.tf/address-pool: slurm-ch-basel-1-pool
+  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-slurmdbd
+  imagePullPolicy: 'Always'
+  # Extra volume mounts
+  volumeMounts: []
+  # Resources allocated
+  resources: {}
+  #  requests:
+  #    cpu: '250m'
+  #    memory: '256Mi'
+  #  limits:
+  #    cpu: '1'
+  #    memory: '1Gi'
+  nodeAffinity: {}
+  nodeSelector: {}
+  tolerations: []
+  # Extra volumes
+  volumes: []
+
+slurmctld:
+  # StatefulSet resource name
+  name: slurmctld
+   # annotations:
+   #   metallb.universe.tf/address-pool: slurm-ch-basel-1-pool
+  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-slurmctld
+  imagePullPolicy: 'Always'
+  # Extra volume mounts
+  volumeMounts: []
+  # Resources allocated
+  resources:
+  #  requests:
+  #    cpu: '4'
+  #    memory: '8Gi'
+  #  limits:
+  #    cpu: '4'
+  #    memory: '8Gi'
+  nodeAffinity: {}
+  nodeSelector:
+  tolerations: []
+  # Extra volumes
+  volumes: []
+  # NOTE: We don't include a replicas field here because
+  # replicas > 1 for slurmctld needs extra Slurm config
+  config:
+    slurm:
+      main:
+        ClusterName: UbiqHPC
+        SlurmctldHost: slurmctld-0
+      general:
+        SlurmUser: slurm
+        SlurmctldPort: 6817
+        SlurmdPort: 6818
+        StateSaveLocation: /var/spool/slurmctld
+        SlurmdSpoolDir: /var/spool/slurmd
+        SlurmctldPidFile: /var/run/slurmd/slurmctld.pid
+        SlurmdPidFile: /var/run/slurmd/slurmd.pid
+      ports:
+        SrunPortRange: "60000-62999"
+        MpiParams: "ports=63000-64999"
+      timers:
+        SlurmctldTimeout: 300
+        SlurmdTimeout: 30
+        InactiveLimit: 0
+        MinJobAge: 300
+        KillWait: 30
+        Waittime: 0
+      scheduling:
+        SchedulerType: sched/backfill
+        SelectType: select/cons_tres
+        SelectTypeParameters: CR_CPU_Memory
+        SchedulerTimeSlice: 60
+        UnkillableStepTimeout: 300
+      priorities:
+        PriorityType: priority/multifactor
+        # The larger the job, the greater its job size priority.
+        PriorityFavorSmall: "NO"
+        # The job's age factor reaches 1.0 after waiting in the
+        # queue for 2 weeks.
+        PriorityMaxAge: 14-0
+        # This next group determines the weighting of each of the
+        # components of the Multi-factor Job Priority Plugin.
+        # The default value for each of the following is 1.
+        PriorityWeightAge: 0
+        PriorityWeightFairshare: 0
+        PriorityWeightJobSize: 0
+        PriorityWeightPartition: 0
+        PriorityWeightQOS: 100
+        PriorityDecayHalfLife: 0
+        PriorityUsageResetPeriod: MONTHLY
+      logging:
+        SlurmctldDebug: 3
+        SlurmctldLogFile: /var/log/slurm/slurmctld.log
+        SlurmdDebug: 3
+        SlurmdLogFile: /var/log/slurm/slurmd.log
+        JobCompType: jobcomp/filetxt
+        JobCompLoc: /var/log/slurm/jobcomp.log
+      accounting:
+        JobAcctGatherType: jobacct_gather/linux
+        JobAcctGatherFrequency: 30
+        AccountingStorageType: accounting_storage/slurmdbd
+        AccountingStorageHost: slurmdbd
+        AccountingStorageTRES: gres/gpu
+        AccountingStoreFlags: job_comment,job_env,job_script
+        AccountingStoragePort: 6819
+      defResourceAllocation:
+        DefCPUPerGPU: 4
+        DefMemPerCPU: 4000
+      tasks:
+        TaskPlugin: task/cgroup # Do NOT change this unless you know what you're doing!
+      gres:
+        #NodeName: "cn[0-99] File=/dev/nvidia[0-3] AutoDetect=nvml"
+      nodes:
+        MaxNodeCount: 100
+        # If you have multiple node types, you need to create different statefulsets for them and add a NodeName section here.
+        #NodeName: "slurmd-[0-99] State=FUTURE CPUs=4"
+      auth:
+        AuthType: "auth/munge"
+        AuthAltTypes: "auth/jwt"
+        AuthAltParameters: "jwt_key=/var/spool/slurm/jwt_hs256.key"
+        AuthInfo: "cred_expire=300"
+      partitions:
+        all: "Default=yes Nodes=ALL"
+      extra:
+        LaunchParameters: enable_nss_slurm
+        TcpTimeout: 5
+        DebugFlags: Script,Gang,SelectType
+        # MPI stacks running over Infiniband or OmniPath require the ability to allocate more
+        # locked memory than the default limit. Unfortunately, user processes on login nodes
+        # may have a small memory limit (check it by ulimit -a) which by default are propagated
+        # into Slurm jobs and hence cause fabric errors for MPI.
+        PropagateResourceLimitsExcept: MEMLOCK
+        ProctrackType: proctrack/linuxproc
+        SwitchType: switch/none
+        MpiDefault: pmix
+        ReturnToService: 2
+        GresTypes: gpu
+        PreemptType: preempt/qos
+        PreemptMode: REQUEUE
+        PreemptExemptTime: -1
+        Prolog: /etc/slurm/prolog.d/*
+        Epilog: /etc/slurm/epilog.d/*
+        RebootProgram: "/usr/sbin/reboot"
+        # Federation
+        FederationParameters: fed_display
+      MailProg: 
+        location: /usr/bin/mailprog.sh
+        executable: /bin/true
+      
+    cgroups:
+      CgroupPlugin: cgroup/v1
+      ConstrainCores: "no" # You can't constrain an already constrained Pod!
+      ConstrainDevices: "no" # You can't constrain an already constrained Pod!
+      ConstrainRAMSpace: "no" # You can't constrain an already constrained Pod!
+storage:
+  mountPath: /home
+  # The name of a Read-Write-Many StorageClass to use for
+  # the persistent volume which is shared across Slurm nodes
+  # Note: If using the default value then you must set
+  # rooknfs.enabled = true below to ensure that Rook NFS is 
+  # installed on the cluster as a dependency of this Slurm
+  # chart. If you are using a separate RWM StorageClass, then
+  # set rooknfs.enabled = false
+  storageClassName: longhorn
+  # Name for the R-W-M volume to provision
+  claimName: slurm-shared-storage
+  # Capacite of the R-W-M volume
+  capacity: &capacity 10Gi   # NB yaml anchor used so this value is also set for `rooknfs.storageCapacity` if necessary.
+
+# Values for Slurm's database container
+database:
+  #Database image to be used
+  image: mariadb:10.10
+  #Storage requested by the var-lib-mysql volume backing the database
+  storage: 100Mi
+
+# Configmap resource names
+configmaps:
+  slurmMailProg: slurm-mailprog-script
+  slurmEpilog: slurm-epilog-scripts
+  slurmProlog: slurm-prolog-scripts
+  slurmConf: slurm-conf-configmap
+  slurmdbdConf: slurmdbd-conf-configmap
+  sshdConfig: sshd-config-configmap
+  sssdConfig: sssd-config-configmap
+  slurmCgroupConf: slurm-cgroup-configmap
+  slurmGresConf: slurm-gres-configmap
+  krb5Config: krb5-config-configmap
+# Public key used for ssh access to the login node
+# If let undefined, assumes you have run the provided publish-keys.sh script to publish your public key prior to deployment
+sshPublicKey:
+
+# Secret resource names
+secrets:
+  mungeKey: munge-key-secret

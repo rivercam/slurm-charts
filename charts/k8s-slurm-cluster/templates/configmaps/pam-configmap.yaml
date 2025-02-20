@@ -1,0 +1,19 @@
+{{- if eq .Values.pam.enabled "true" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pam-config-configmap
+data:
+{{- if .Values.pam.password_auth }}
+  password-auth: |+
+    {{- range $key, $value := .Values.pam.password_auth }}
+    {{ $value }}
+    {{- end }}
+{{- end }}
+{{- if .Values.pam.system_auth }}    
+  system-auth: |+
+    {{- range $key, $value := .Values.pam.system_auth }}
+    {{ $value }}
+    {{- end }}
+{{- end }}
+{{- end }}

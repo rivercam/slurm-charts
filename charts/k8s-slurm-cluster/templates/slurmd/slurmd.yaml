@@ -1,0 +1,203 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  creationTimestamp: null
+  labels:
+    app.kubernetes.io/name: slurm
+    app.kubernetes.io/component: slurmd
+  name: {{ .Values.slurmd.name }}
+spec:
+  replicas: {{ .Values.slurmd.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: slurm
+      app.kubernetes.io/component: slurmd
+  serviceName: slurmd
+  template:
+    metadata:
+      creationTimestamp: null
+      {{- if eq .Values.network.rdma "true" }}
+      {{- if .Values.network.ipoibnetworks }}
+      annotations:
+        {{- range $.Values.network.ipoibnetworks }}
+        k8s.v1.cni.cncf.io/networks: {{ . }}
+        {{- end }}
+      {{- end }}
+      {{- end }}
+      labels:
+        app.kubernetes.io/name: slurm
+        app.kubernetes.io/component: slurmd
+{{- if .Values.slurmd.labels }}
+{{ toYaml .Values.slurmd.labels | indent 8 }}
+{{- end }}
+    spec:
+      {{- with .Values.slurmd.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.slurmd.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      {{- with .Values.slurmd.nodeAffinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+      {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.slurmd.terminationGracePeriod }}
+      initContainers:
+      {{- if eq .Values.auth.krb5.enabled "true" }}
+      - name: ad-join-init-container
+        image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-adcli
+        command: ["/bin/sh", "-c"]
+        args:
+        - |
+          echo "Reading SSSD credentials from secret..."
+          domain=$(cat /etc/sssd-creds/domain)
+          username=$(cat /etc/sssd-creds/username)
+          password=$(cat /etc/sssd-creds/password)
+          echo $password | adcli join --domain=$domain --login-user=$username --stdin-password && mv /etc/krb5.keytab /keytab/keytab
+        volumeMounts:
+        - name: keytab-volume
+          mountPath: /keytab
+        - name: sssd-creds
+          mountPath: /etc/sssd-creds
+      {{- end }}
+      - name: increase-vm-max-map
+        image: busybox
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: increase-fd-ulimit
+        image: busybox
+        command: ["sh", "-c", "ulimit -n 131072"]
+        securityContext:
+          privileged: true
+      - name: increase-locked-memory-ulimit
+        image: busybox
+        command: ["sh", "-c", "ulimit -l unlimited"]
+        securityContext:
+          privileged: true
+      - name: increase-stacksize-ulimit
+        image: busybox
+        command: ["sh", "-c", "ulimit -s unlimited"]
+        securityContext:
+          privileged: true
+      containers:
+        - name: slurmd
+          image: {{ .Values.slurmd.image }}
+          imagePullPolicy: {{ .Values.slurmd.imagePullPolicy }}
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - containerPort: 6818
+              hostPort: 6818
+          {{- if eq .Values.network.rdma "true" }}
+          resources:
+            requests:
+{{ toYaml .Values.slurmd.resources.requests | indent 14 }}
+              rdma/rdma_shared_device_a: 1
+            limits:
+{{ toYaml .Values.slurmd.resources.limits | indent 14 }}
+              rdma/rdma_shared_device_a: 1
+          securityContext:
+            capabilities:
+              add:
+              - IPC_LOCK
+              - SYS_ADMIN
+          {{- else }}
+          resources:
+{{ toYaml .Values.slurmd.resources | indent 12 }}
+          securityContext:
+            privileged: true
+            capabilities:
+               add:
+               - SYS_ADMIN
+          {{- end }}
+          volumeMounts:
+            - name:  {{ .Values.configmaps.sssdConfig }}
+              mountPath: /etc/sssd/sssd.conf
+              subPath: sssd.conf
+            - name: {{ .Values.configmaps.slurmProlog }}
+              mountPath: /etc/slurm/prolog.d
+            - name: {{ .Values.configmaps.slurmEpilog }} 
+              mountPath: /etc/slurm/epilog.d
+            - name: {{ .Values.configmaps.slurmMailProg }}
+              mountPath: {{ .Values.slurmctld.config.slurm.MailProg.location }}
+              subPath: mailprog.sh
+            - name: slurm-config-volume
+              mountPath: /etc/slurm/slurm.conf
+              subPath: slurm.conf
+            - name: slurm-config-cgroup
+              mountPath: /etc/slurm/cgroup.conf
+              subPath: cgroup.conf
+            - name: sys-fs-cgroup
+              mountPath: /sys/fs/cgroup
+            - name: run-dbus
+              mountPath: /var/run/dbus
+            - name: slurm-jobdir
+              mountPath: {{ .Values.storage.mountPath }}
+            - name: munge-key-secret
+              mountPath: /tmp/munge.key
+              subPath: munge.key
+            {{- if eq .Values.auth.krb5.enabled "true" }}
+            - name: keytab-volume
+              mountPath: /etc/krb5.keytab
+              subPath: keytab
+            {{- end }}
+            {{- if .Values.slurmd.volumeMounts }}
+{{ toYaml .Values.slurmd.volumeMounts | indent 12 }}
+        {{- end }}
+      dnsPolicy: ClusterFirstWithHostNet
+      dnsConfig:
+        searches:
+          - slurmd.hpc-ubiq.svc.cluster.local
+      restartPolicy: Always
+      volumes:
+        {{- if eq .Values.auth.krb5.enabled "true" }}
+        - name: sssd-creds
+          secret:
+            secretName: sssd-creds
+        {{- end }}
+        - name: sys-fs-cgroup
+          hostPath:
+            path: /sys/fs/cgroup
+        - name: run-dbus
+          hostPath:
+            path: /var/run/dbus
+        - name: {{ .Values.configmaps.sssdConfig }}
+          configMap:
+            name: {{ .Values.configmaps.sssdConfig }}
+            defaultMode: 0600
+        - name: {{ .Values.configmaps.slurmProlog }}
+          configMap:
+            name: {{ .Values.configmaps.slurmProlog }}
+            defaultMode: 0555
+        - name: {{ .Values.configmaps.slurmEpilog }}
+          configMap:
+            name: {{ .Values.configmaps.slurmEpilog }}
+            defaultMode: 0555
+        - name: {{ .Values.configmaps.slurmMailProg }}
+          configMap:
+            name: {{ .Values.configmaps.slurmMailProg }}
+            defaultMode: 0555
+        - name: slurm-config-cgroup
+          configMap:
+            name: {{ .Values.configmaps.slurmCgroupConf }}
+        - name: slurm-jobdir
+          persistentVolumeClaim:
+            claimName: {{ .Values.storage.claimName }}
+        - name: slurm-config-volume
+          configMap:
+            name: {{ .Values.configmaps.slurmConf }}
+        - name: keytab-volume
+          emptydir: {}
+        - name: munge-key-secret
+          secret:
+            secretName: {{ .Values.secrets.mungeKey }}
+            defaultMode: 0400
+        {{- if .Values.slurmd.volumes }}
+{{ toYaml .Values.slurmd.volumes | indent 8 }}
+        {{- end }}

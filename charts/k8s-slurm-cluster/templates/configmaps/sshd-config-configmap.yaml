@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configmaps.sshdConfig }}
+data:
+  sshd_config: |+
+    ###
+    # Ubiquity SSH configuration file.
+    ###
+    {{- range $key, $value := .Values.auth.ssh }}
+    {{ $key }} {{ $value }}
+    {{- end }}
+    

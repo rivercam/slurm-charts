@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.configmaps.slurmConf }}
+data:
+  slurm.conf: |+
+    # slurm.conf
+    #
+    # See the slurm.conf man page for more information.
+    #
+    {{- range $key, $value := .Values.slurmctld.config.slurm.general }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # MAIN
+    {{- range $key, $value := .Values.slurmctld.config.slurm.main }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # PORTS
+    {{- range $key, $value := .Values.slurmctld.config.slurm.ports }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # TIMERS
+    {{- range $key, $value := .Values.slurmctld.config.slurm.timers }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # SCHEDULING
+    {{- range $key, $value := .Values.slurmctld.config.slurm.scheduling }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # LOGGING
+    {{- range $key, $value := .Values.slurmctld.config.slurm.logging }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # ACCOUNTING
+    {{- range $key, $value := .Values.slurmctld.config.slurm.accounting }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # COMMS
+    {{- range $key, $value := .Values.slurmctld.config.slurm.comms }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # TASKS
+    {{- range $key, $value := .Values.slurmctld.config.slurm.tasks }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # NODES
+    {{- range $key, $value := .Values.slurmctld.config.slurm.nodes }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # AUTH
+    {{- range $key, $value := .Values.slurmctld.config.slurm.auth }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+    #
+    # PARTITIONS
+    {{- range $key, $value := .Values.slurmctld.config.slurm.partitions }}
+    PartitionName={{ $key }} {{ $value }}
+    {{- end }}
+    #
+    # EXTRA
+    {{- range $key, $value := .Values.slurmctld.config.slurm.extra }}
+    {{ $key }}={{ $value }}
+    {{- end }}
+
