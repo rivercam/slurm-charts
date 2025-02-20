@@ -199,7 +199,7 @@ metrics:
   ## You can customize the command to refresh the tls configs with:
   ## command: ['sh', '-c', 'update-ca-trust && /init']
   command: ['/init']
-
+  ## Todo: change this image
   image: cjcshadowsan/k8s-slurm:23.11-prometheus-exporter-rocky9.2
   imagePullPolicy: Always
 
