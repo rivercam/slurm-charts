@@ -1,4 +1,4 @@
-slurmImage: cjcshadowsan/k8s-slurm-cluster:el9-23.11
+slurmImage: ubiquitycluster/slurm-base:latest
 
 motd:
   message: "Welcome to Ubiquity!"
@@ -34,7 +34,7 @@ login:
     enabled: true
    # annotations:
    #   metallb.universe.tf/address-pool: slurm-ch-basel-1-pool
-  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-login
+  image: ubiquitycluster/slurm-login
   imagePullPolicy: 'Always'
   # Extra volume mounts
   volumeMounts: []
@@ -248,7 +248,7 @@ slurmd:
   # StatefulSet resource name
   name: slurmd # NB this must match NodeName= in slurm-cluster-chart/files/slurm.conf
   replicas: 2
-  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-slurmd
+  image: ubiquitycluster/slurm-worker
   imagePullPolicy: 'Always'
   labels:
     role: compute-node
@@ -292,7 +292,7 @@ slurmdbd:
     enabled: true
    # annotations:
    #   metallb.universe.tf/address-pool: slurm-ch-basel-1-pool
-  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-slurmdbd
+  image: ubiquitycluster/slurm-database
   imagePullPolicy: 'Always'
   # Extra volume mounts
   volumeMounts: []
@@ -315,7 +315,7 @@ slurmctld:
   name: slurmctld
    # annotations:
    #   metallb.universe.tf/address-pool: slurm-ch-basel-1-pool
-  image: cjcshadowsan/k8s-slurm:rocky-9.3-23.11-slurmctld
+  image: ubiquitycluster/slurm-controller
   imagePullPolicy: 'Always'
   # Extra volume mounts
   volumeMounts: []
