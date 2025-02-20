@@ -2,6 +2,14 @@ apiVersion: v1
 entries:
   k8s-slurm-cluster:
   - apiVersion: v2
+    created: "2025-02-20T23:24:59.56366636Z"
+    description: A Helm chart for Slurm in K8s
+    digest: 922f960824ca55369220f5d34c570fa4536fb35d282035ac1336175ccd1e492d
+    name: k8s-slurm-cluster
+    urls:
+    - https://github.com/rivercam/slurm-charts/releases/download/k8s-slurm-cluster-1.0.9/k8s-slurm-cluster-1.0.9.tgz
+    version: 1.0.9
+  - apiVersion: v2
     created: "2025-02-20T14:59:20.995713282Z"
     description: A Helm chart for Slurm in K8s
     digest: aa052345e1ca3f90fd0800cc24148bf5af3d8c5fd3b8688b3df6fce96599f372
@@ -25,4 +33,4 @@ entries:
     urls:
     - https://github.com/rivercam/slurm-charts/releases/download/k8s-slurm-cluster-1.0.6/k8s-slurm-cluster-1.0.6.tgz
     version: 1.0.6
-generated: "2025-02-20T14:59:20.99574965Z"
+generated: "2025-02-20T23:24:59.563689563Z"
